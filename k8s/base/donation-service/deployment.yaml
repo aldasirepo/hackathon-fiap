@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: donation-service
+  namespace: solidarytech
+  labels:
+    app: donation-service
+    version: "1.0.0"
+    criticality: hot-path
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: donation-service
+  template:
+    metadata:
+      labels:
+        app: donation-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: donation-service
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: donation-service-secrets
+                  key: database-url
+            - name: AWS_SQS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: donation-service-secrets
+                  key: sqs-url
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: PORT
+              value: "8082"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: donation-service

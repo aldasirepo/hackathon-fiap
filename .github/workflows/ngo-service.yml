@@ -1,0 +1,98 @@
+name: CI/CD - ngo-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ngo-service/**"
+      - ".github/workflows/ngo-service.yml"
+  pull_request:
+    paths:
+      - "ngo-service/**"
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: solidarytech/ngo-service
+  SERVICE_DIR: ngo-service
+
+jobs:
+  # ── SAST / SCA ──────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy - Scan filesystem (SCA/SAST)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "./${{ env.SERVICE_DIR }}"
+          format: "sarif"
+          output: "trivy-fs.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-fs.sarif"
+
+  # ── BUILD & PUSH ─────────────────────────────────────────────
+  build-push:
+    name: Build & Push ECR
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: meta
+        run: echo "tags=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ steps.meta.outputs.tags }} ./${{ env.SERVICE_DIR }}
+
+      - name: Trivy - Scan container image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: "sarif"
+          output: "trivy-image.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Push to ECR
+        id: build
+        run: |
+          docker push ${{ steps.meta.outputs.tags }}
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.meta.outputs.tags }})
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Update image tag in k8s manifests
+        run: |
+          sed -i "s|solidarytech/ngo-service:.*|solidarytech/ngo-service:${{ github.sha }}|g" \
+            k8s/base/ngo-service/deployment.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/base/ngo-service/deployment.yaml
+          git commit -m "ci: update ngo-service image to ${{ github.sha }}" || echo "No changes"
+          git push

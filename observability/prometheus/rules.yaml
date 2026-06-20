@@ -1,0 +1,79 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: solidarytech-sre-rules
+  namespace: solidarytech
+  labels:
+    app: kube-prometheus-stack
+    release: prometheus
+spec:
+  groups:
+    # ── SLI: Taxa de Erros do donation-service ──────────────────
+    - name: donation-service.slo
+      interval: 30s
+      rules:
+        # SLI 1 - Error Rate (meta: < 0.1% erros = SLO 99.9%)
+        - record: job:donation_error_rate:ratio5m
+          expr: |
+            sum(rate(http_requests_total{job="donation-service", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="donation-service"}[5m]))
+
+        - alert: DonationServiceErrorBudgetBurning
+          expr: job:donation_error_rate:ratio5m > 0.001
+          for: 5m
+          labels:
+            severity: critical
+            service: donation-service
+            slo: error-rate
+          annotations:
+            summary: "donation-service queimando Error Budget"
+            description: "Taxa de erro {{ $value | humanizePercentage }} acima do SLO de 99.9%"
+
+        # SLI 2 - Latência p99 (meta: < 500ms = SLO 99.9%)
+        - record: job:donation_latency_p99:5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{job="donation-service"}[5m])) by (le)
+            )
+
+        - alert: DonationServiceHighLatency
+          expr: job:donation_latency_p99:5m > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            service: donation-service
+            slo: latency
+          annotations:
+            summary: "donation-service com latência alta"
+            description: "p99 = {{ $value | humanizeDuration }} (SLO: < 500ms)"
+
+    # ── Alertas gerais ──────────────────────────────────────────
+    - name: solidarytech.general
+      rules:
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{namespace="solidarytech"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod em CrashLoop: {{ $labels.pod }}"
+
+        - alert: HighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{namespace="solidarytech"}
+            / container_spec_memory_limit_bytes{namespace="solidarytech"} > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Uso de memória alto em {{ $labels.container }}"
+            description: "{{ $value | humanizePercentage }} do limit"
+
+        - alert: HPAMaxReplicas
+          expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="solidarytech"} == kube_horizontalpodautoscaler_spec_max_replicas{namespace="solidarytech"}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA no máximo de réplicas: {{ $labels.horizontalpodautoscaler }}"

@@ -1,0 +1,120 @@
+{
+  "title": "SolidaryTech - SRE Dashboard",
+  "uid": "solidarytech-sre",
+  "tags": ["sre", "slo", "solidarytech"],
+  "timezone": "America/Sao_Paulo",
+  "panels": [
+    {
+      "id": 1,
+      "title": "donation-service - SLO Error Rate (meta: 99.9%)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red",    "value": 0 },
+              { "color": "yellow", "value": 99.5 },
+              { "color": "green",  "value": 99.9 }
+            ]
+          },
+          "unit": "percent",
+          "min": 99,
+          "max": 100
+        }
+      },
+      "targets": [{
+        "expr": "(1 - job:donation_error_rate:ratio5m) * 100",
+        "legendFormat": "Availability"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "donation-service - Latência p99 (meta: < 500ms)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green",  "value": 0 },
+              { "color": "yellow", "value": 0.3 },
+              { "color": "red",    "value": 0.5 }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "targets": [{
+        "expr": "job:donation_latency_p99:5m",
+        "legendFormat": "p99 latency"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Error Budget Restante - 30 dias",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red",    "value": 0 },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "green",  "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "expr": "1 - (sum_over_time(job:donation_error_rate:ratio5m[30d]) / (30 * 24 * 60 / 5) / 0.001)",
+        "legendFormat": "Error Budget"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Request Rate - todos os serviços",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(http_requests_total{job=\"donation-service\"}[5m]))", "legendFormat": "donation-service" },
+        { "expr": "sum(rate(http_requests_total{job=\"ngo-service\"}[5m]))", "legendFormat": "ngo-service" },
+        { "expr": "sum(rate(http_requests_total{job=\"volunteer-service\"}[5m]))", "legendFormat": "volunteer-service" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "CPU Usage por serviço",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [{
+        "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"solidarytech\"}[5m])) by (pod)",
+        "legendFormat": "{{ pod }}"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Memory Usage por serviço",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [{
+        "expr": "sum(container_memory_working_set_bytes{namespace=\"solidarytech\"}) by (pod)",
+        "legendFormat": "{{ pod }}"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "Réplicas ativas (HPA)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 24 },
+      "targets": [{
+        "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"solidarytech\"}",
+        "legendFormat": "{{ horizontalpodautoscaler }}"
+      }]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "version": 1
+}

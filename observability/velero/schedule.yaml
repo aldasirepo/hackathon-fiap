@@ -1,0 +1,17 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: solidarytech-daily-backup
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"   # 02:00 UTC diariamente
+  template:
+    includedNamespaces:
+      - solidarytech
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    ttl: 720h0m0s           # 30 dias de retenção
+    labelSelector:
+      matchLabels:
+        project: solidarytech
