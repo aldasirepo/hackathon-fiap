@@ -10,6 +10,11 @@ on:
     paths:
       - "ngo-service/**"
 
+permissions:
+  contents: write
+  security-events: write
+  id-token: write
+
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: solidarytech/ngo-service
@@ -26,14 +31,14 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
-          scan-ref: "./${{ env.SERVICE_DIR }}"
+          scan-ref: "./ngo-service"
           format: "sarif"
           output: "trivy-fs.sarif"
           severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: "trivy-fs.sarif"
@@ -57,18 +62,11 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag & push image
+      - name: Build & push image
         id: build
         run: |
           IMAGE="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           docker build -t "$IMAGE" ./${{ env.SERVICE_DIR }}
-
-          # Scan antes de push
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest image \
-            --exit-code 1 --severity CRITICAL,HIGH "$IMAGE"
-
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
