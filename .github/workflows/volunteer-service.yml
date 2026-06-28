@@ -72,12 +72,18 @@ jobs:
 
       - name: Update kustomize overlay
         run: |
-          cd k8s/overlays/production
-          kustomize edit set image \
-            "solidarytech/volunteer-service=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add kustomization.yaml
-          git pull --rebase origin main
-          git commit -m "ci: update volunteer-service to ${{ github.sha }}" || echo "No changes"
-          git push
+
+          # Retry loop para evitar conflito quando multiplos workflows rodam em paralelo
+          for i in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cd k8s/overlays/production
+            kustomize edit set image \
+              "solidarytech/volunteer-service=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+            cd $GITHUB_WORKSPACE
+            git add k8s/overlays/production/kustomization.yaml
+            git commit -m "ci: update volunteer-service to ${{ github.sha }}" || { echo "No changes"; exit 0; }
+            git push origin main && break || sleep $((i * 5))
+          done
