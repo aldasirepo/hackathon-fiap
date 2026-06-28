@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Trivy - Scan filesystem
+      - name: Trivy - Scan filesystem (SCA/SAST)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: "fs"
@@ -50,39 +50,34 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image tag
-        id: meta
-        run: echo "tags=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Build Docker image
-        run: docker build -t ${{ steps.meta.outputs.tags }} ./${{ env.SERVICE_DIR }}
-
-      - name: Trivy - Scan container image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: "sarif"
-          output: "trivy-image.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
-
-      - name: Push to ECR
-        run: docker push ${{ steps.meta.outputs.tags }}
-
-      - name: Update image tag in k8s manifests
+      - name: Build, tag & push image
+        id: build
         run: |
-          sed -i "s|solidarytech/volunteer-service:.*|solidarytech/volunteer-service:${{ github.sha }}|g" \
-            k8s/base/volunteer-service/deployment.yaml
+          IMAGE="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          docker build -t "$IMAGE" ./${{ env.SERVICE_DIR }}
+
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --exit-code 1 --severity CRITICAL,HIGH "$IMAGE"
+
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Update kustomize overlay
+        run: |
+          cd k8s/overlays/production
+          kustomize edit set image \
+            "solidarytech/volunteer-service=${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/base/volunteer-service/deployment.yaml
-          git commit -m "ci: update volunteer-service image to ${{ github.sha }}" || echo "No changes"
+          git add kustomization.yaml
+          git commit -m "ci: update volunteer-service to ${{ github.sha }}" || echo "No changes"
           git push

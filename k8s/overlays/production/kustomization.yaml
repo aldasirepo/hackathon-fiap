@@ -10,3 +10,17 @@ commonLabels:
   environment: production
   project: solidarytech
   cost-center: ngo-core
+
+# Imagens substituídas pela CI/CD via:
+# kustomize edit set image ... no workflow
+# O ACCOUNT_ID real é injetado via GitHub Secret AWS_ACCOUNT_ID
+images:
+  - name: solidarytech/ngo-service
+    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
+    newTag: latest
+  - name: solidarytech/donation-service
+    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service
+    newTag: latest
+  - name: solidarytech/volunteer-service
+    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
+    newTag: latest
