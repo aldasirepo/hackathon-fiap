@@ -23,7 +23,7 @@ spec:
       serviceAccountName: volunteer-service-sa
       containers:
         - name: volunteer-service
-          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service:latest
+          image: solidarytech/volunteer-service:latest
           ports:
             - containerPort: 8083
           env:
