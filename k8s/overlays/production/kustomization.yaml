@@ -17,8 +17,8 @@ images:
   newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service
   newTag: latest
 - name: solidarytech/ngo-service
-  newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
-  newTag: latest
+  newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
+  newTag: cf1562946160268216b4b2e9aef449a214ffb30b
 - name: solidarytech/volunteer-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
   newTag: 4a34df8039e32a48b53aafc9e3a846df51f96f35
