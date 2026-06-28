@@ -1,26 +1,26 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
-  - ../../base
 
 namespace: solidarytech
 
 commonLabels:
+  cost-center: ngo-core
   environment: production
   project: solidarytech
-  cost-center: ngo-core
 
 # Imagens substituídas pela CI/CD via:
 # kustomize edit set image ... no workflow
 # O ACCOUNT_ID real é injetado via GitHub Secret AWS_ACCOUNT_ID
 images:
-  - name: solidarytech/ngo-service
-    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
-    newTag: latest
-  - name: solidarytech/donation-service
-    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service
-    newTag: latest
-  - name: solidarytech/volunteer-service
-    newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
-    newTag: latest
+- name: solidarytech/donation-service
+  newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service
+  newTag: latest
+- name: solidarytech/ngo-service
+  newName: $(AWS_ACCOUNT_ID).dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
+  newTag: latest
+- name: solidarytech/volunteer-service
+  newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
+  newTag: 4a34df8039e32a48b53aafc9e3a846df51f96f35
+resources:
+- ../../base
