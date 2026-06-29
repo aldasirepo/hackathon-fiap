@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 
-RUN useradd -m appuser
+RUN useradd -m appuser && chmod 1777 /tmp
+
 USER appuser
 
 EXPOSE 8081
