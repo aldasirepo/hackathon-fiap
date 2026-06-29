@@ -8,7 +8,7 @@ metadata:
     version: "1.0.0"
     criticality: hot-path
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: donation-service
