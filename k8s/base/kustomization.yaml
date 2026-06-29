@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - namespace/namespace.yaml
+  - ngo-service/db-init-job.yaml
   - ngo-service/deployment.yaml
   - ngo-service/service.yaml
   - ngo-service/hpa.yaml
