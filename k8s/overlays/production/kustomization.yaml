@@ -18,7 +18,7 @@ images:
   newTag: 163c2294b16d37cb9e1853c4738e62292e372159
 - name: solidarytech/ngo-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
-  newTag: 6adf5c4d531f80f1d955c8712a84f7928588d8f4
+  newTag: 4c25dc79036da88be93de7a1fc8a692b2e309067
 - name: solidarytech/volunteer-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
   newTag: 4c25dc79036da88be93de7a1fc8a692b2e309067
