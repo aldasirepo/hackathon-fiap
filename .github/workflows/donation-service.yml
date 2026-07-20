@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - "donation-service/**"
+  workflow_call:
 
 permissions:
   contents: write

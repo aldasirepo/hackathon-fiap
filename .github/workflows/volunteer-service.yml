@@ -9,6 +9,7 @@ on:
   pull_request:
     paths:
       - "volunteer-service/**"
+  workflow_call:
 
 permissions:
   contents: write
