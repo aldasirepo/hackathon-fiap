@@ -7,6 +7,7 @@ resources:
   - ngo-service/deployment.yaml
   - ngo-service/service.yaml
   - ngo-service/hpa.yaml
+  - donation-service/db-init-job.yaml
   - donation-service/deployment.yaml
   - donation-service/service.yaml
   - donation-service/hpa.yaml
