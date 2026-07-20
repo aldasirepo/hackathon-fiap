@@ -1,0 +1,130 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: solidarytech-sre-rules
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: solidarytech.slo
+      interval: 30s
+      rules:
+        # SLI: Taxa de sucesso do donation-service (meta: 99.9%)
+        - record: donation_service:request_success_rate:5m
+          expr: |
+            sum(rate(http_requests_total{service="donation-service", status=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="donation-service"}[5m]))
+
+        # SLI: Latência p99 do donation-service (meta: < 500ms)
+        - record: donation_service:request_latency_p99:5m
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{service="donation-service"}[5m])) by (le)
+            )
+
+        # Error Budget burn rate (1h)
+        - record: donation_service:error_budget_burn_rate:1h
+          expr: |
+            1 - (
+              sum(rate(http_requests_total{service="donation-service", status=~"2.."}[1h]))
+              /
+              sum(rate(http_requests_total{service="donation-service"}[1h]))
+            )
+
+    - name: solidarytech.alerts
+      rules:
+        # Alerta: SLO de disponibilidade violado
+        - alert: DonationServiceSLOViolation
+          expr: donation_service:request_success_rate:5m < 0.999
+          for: 5m
+          labels:
+            severity: critical
+            service: donation-service
+            team: devops
+          annotations:
+            summary: "SLO de disponibilidade violado no donation-service"
+            description: "Taxa de sucesso {{ $value | humanizePercentage }} abaixo do SLO de 99.9% por 5 minutos."
+            runbook: "Verificar logs: kubectl logs -n solidarytech deployment/donation-service"
+
+        # Alerta: Latência alta (p99 > 500ms)
+        - alert: DonationServiceHighLatency
+          expr: donation_service:request_latency_p99:5m > 0.5
+          for: 5m
+          labels:
+            severity: warning
+            service: donation-service
+            team: devops
+          annotations:
+            summary: "Latência p99 alta no donation-service"
+            description: "Latência p99 de {{ $value | humanizeDuration }} acima de 500ms."
+
+        # Alerta: Pod em CrashLoopBackOff
+        - alert: PodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="solidarytech"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: critical
+            team: devops
+          annotations:
+            summary: "Pod {{ $labels.pod }} em CrashLoop"
+            description: "Container {{ $labels.container }} reiniciou mais de 3 vezes nos últimos 15 minutos."
+
+        # Alerta: Pod não disponível
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{namespace="solidarytech", condition="true"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Pod {{ $labels.pod }} não está pronto"
+            description: "Pod {{ $labels.pod }} permanece não-ready por mais de 5 minutos."
+
+        # Alerta: Alta utilização de memória
+        - alert: HighMemoryUsage
+          expr: |
+            (
+              container_memory_working_set_bytes{namespace="solidarytech", container!=""}
+              /
+              kube_pod_container_resource_limits{namespace="solidarytech", resource="memory"}
+            ) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Uso de memória alto em {{ $labels.container }}"
+            description: "Container {{ $labels.container }} usando {{ $value | humanizePercentage }} do limite de memória."
+
+        # Alerta: Anomalia de tráfego (AIOps - spike súbito)
+        - alert: TrafficAnomaly
+          expr: |
+            (
+              sum(rate(http_requests_total{service="donation-service"}[5m]))
+              /
+              sum(rate(http_requests_total{service="donation-service"}[1h] offset 1h))
+            ) > 3
+          for: 2m
+          labels:
+            severity: warning
+            team: devops
+            type: aiops
+          annotations:
+            summary: "Anomalia de tráfego detectada no donation-service"
+            description: "Volume de requisições 3x acima da média histórica. Possível pico inesperado ou ataque."
+
+        # Alerta: Error Budget crítico (burn rate alto)
+        - alert: ErrorBudgetBurnRateHigh
+          expr: donation_service:error_budget_burn_rate:1h > 0.01
+          for: 10m
+          labels:
+            severity: critical
+            team: devops
+            type: sre
+          annotations:
+            summary: "Error Budget sendo consumido rapidamente"
+            description: "Taxa de queima do Error Budget de {{ $value | humanizePercentage }} na última hora. SLO em risco."

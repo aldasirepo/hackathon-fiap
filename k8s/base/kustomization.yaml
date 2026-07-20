@@ -3,6 +3,9 @@ kind: Kustomization
 
 resources:
   - namespace/namespace.yaml
+  - monitoring/service-monitors.yaml
+  - monitoring/prometheus-rules.yaml
+  - monitoring/grafana-dashboard-sre.yaml
   - ngo-service/db-init-job.yaml
   - ngo-service/deployment.yaml
   - ngo-service/service.yaml

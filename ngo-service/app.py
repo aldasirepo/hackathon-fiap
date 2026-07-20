@@ -7,12 +7,33 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import logging
 
+from prometheus_flask_exporter import PrometheusMetrics
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.sdk.resources import Resource
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
 load_dotenv()
 
 app = Flask(__name__)
+
+# Prometheus metrics
+metrics = PrometheusMetrics(app, default_labels={'service': 'ngo-service'})
+metrics.info('ngo_service_info', 'NGO Service Info', version='1.0.0')
+
+# OpenTelemetry tracing
+OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://tempo.monitoring.svc.cluster.local:4317")
+resource = Resource.create({"service.name": "ngo-service", "service.version": "1.0.0"})
+provider = TracerProvider(resource=resource)
+exporter = OTLPSpanExporter(endpoint=OTEL_ENDPOINT, insecure=True)
+provider.add_span_processor(BatchSpanProcessor(exporter))
+trace.set_tracer_provider(provider)
+FlaskInstrumentor().instrument_app(app)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:

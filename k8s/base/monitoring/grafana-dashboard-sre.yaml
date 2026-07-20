@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: solidarytech-sre-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  solidarytech-sre.json: |
+    {
+      "title": "SolidaryTech - SRE Dashboard",
+      "uid": "solidarytech-sre",
+      "tags": ["sre", "slo", "solidarytech"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "SLO - Disponibilidade donation-service (Meta: 99.9%)",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "targets": [{
+            "expr": "donation_service:request_success_rate:5m * 100",
+            "legendFormat": "Disponibilidade %"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "yellow", "value": 99},
+                  {"color": "green", "value": 99.9}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "SLO - Latência p99 donation-service (Meta: < 500ms)",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "targets": [{
+            "expr": "donation_service:request_latency_p99:5m * 1000",
+            "legendFormat": "Latência p99 (ms)"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 300},
+                  {"color": "red", "value": 500}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Error Budget Restante",
+          "type": "gauge",
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "targets": [{
+            "expr": "(1 - donation_service:error_budget_burn_rate:1h) * 100",
+            "legendFormat": "Error Budget %"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "yellow", "value": 25},
+                  {"color": "green", "value": 50}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Pods Running - solidarytech",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "targets": [{
+            "expr": "count(kube_pod_status_ready{namespace=\"solidarytech\", condition=\"true\"})",
+            "legendFormat": "Pods Ready"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "yellow", "value": 2},
+                  {"color": "green", "value": 3}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Taxa de Requisições - donation-service (Golden Signal)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "targets": [{
+            "expr": "sum(rate(http_requests_total{service=\"donation-service\"}[5m])) by (status)",
+            "legendFormat": "Status {{ status }}"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "reqps"}
+          }
+        },
+        {
+          "id": 6,
+          "title": "Latência por Percentil - donation-service (Golden Signal)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {"unit": "s"}
+          }
+        },
+        {
+          "id": 7,
+          "title": "Taxa de Erros - Todos os Serviços (Golden Signal)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "targets": [{
+            "expr": "sum(rate(http_requests_total{namespace=\"solidarytech\", status=~\"5..\"}[5m])) by (service)",
+            "legendFormat": "{{ service }}"
+          }],
+          "fieldConfig": {
+            "defaults": {"unit": "reqps"}
+          }
+        },
+        {
+          "id": 8,
+          "title": "Saturação - CPU/Memória dos Pods (Golden Signal)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"solidarytech\", container!=\"\"}[5m])) by (pod)",
+              "legendFormat": "CPU {{ pod }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {"unit": "cores"}
+          }
+        },
+        {
+          "id": 9,
+          "title": "Restarts de Container (Auto-Healing)",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 24, "x": 0, "y": 20},
+          "targets": [{
+            "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"solidarytech\"}[1h])",
+            "legendFormat": "{{ pod }}/{{ container }}"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 1},
+                  {"color": "red", "value": 3}
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39
+    }

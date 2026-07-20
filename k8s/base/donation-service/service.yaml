@@ -9,7 +9,8 @@ spec:
   selector:
     app: donation-service
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 8082
       protocol: TCP
   type: ClusterIP
