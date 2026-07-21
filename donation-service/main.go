@@ -65,7 +65,7 @@ func initTracer() func(context.Context) error {
 		endpoint = "tempo.monitoring.svc.cluster.local:4317"
 	}
 
-	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials())) //nolint:staticcheck
 	if err != nil {
 		log.Printf("Aviso: falha ao conectar ao coletor OTLP: %v", err)
 		return func(ctx context.Context) error { return nil }
