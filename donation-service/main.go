@@ -22,7 +22,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -78,10 +77,11 @@ func initTracer() func(context.Context) error {
 		return func(ctx context.Context) error { return nil }
 	}
 
-	res := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName("donation-service"),
-		semconv.ServiceVersion("1.0.0"),
+	res, _ := resource.New(context.Background(),
+		resource.WithAttributes(
+			attribute.String("service.name", "donation-service"),
+			attribute.String("service.version", "1.0.0"),
+		),
 	)
 
 	tp := sdktrace.NewTracerProvider(
