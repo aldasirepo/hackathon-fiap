@@ -15,7 +15,7 @@ commonLabels:
 images:
 - name: solidarytech/donation-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/donation-service
-  newTag: 5504d9411bd898f75acfea2af0df8575b5d8cc52
+  newTag: 93f472ed95d2adb652b8bc459525d28c8d90c45c
 - name: solidarytech/ngo-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/ngo-service
   newTag: 93f472ed95d2adb652b8bc459525d28c8d90c45c
