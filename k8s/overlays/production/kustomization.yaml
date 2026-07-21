@@ -21,6 +21,6 @@ images:
   newTag: 549c46b9ddc3378900093187205ce92e4ac7be89
 - name: solidarytech/volunteer-service
   newName: 215671569122.dkr.ecr.us-east-1.amazonaws.com/solidarytech/volunteer-service
-  newTag: 7cf074e808eca2abf4b1a0cb9ae8332d030ab29a
+  newTag: 549c46b9ddc3378900093187205ce92e4ac7be89
 resources:
 - ../../base
