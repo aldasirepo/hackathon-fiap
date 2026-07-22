@@ -19,9 +19,11 @@ data:
           "id": 1,
           "title": "SLO - Disponibilidade donation-service (Meta: 99.9%)",
           "type": "stat",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
           "targets": [{
-            "expr": "donation_service:request_success_rate:5m * 100",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "expr": "sum(rate(http_requests_total{namespace=\"solidarytech\", service=\"donation-service\", status!~\"5..\"}[5m])) / sum(rate(http_requests_total{namespace=\"solidarytech\", service=\"donation-service\"}[5m])) * 100",
             "legendFormat": "Disponibilidade %"
           }],
           "fieldConfig": {
@@ -41,9 +43,11 @@ data:
           "id": 2,
           "title": "SLO - Latência p99 donation-service (Meta: < 500ms)",
           "type": "stat",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
           "targets": [{
-            "expr": "donation_service:request_latency_p99:5m * 1000",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"solidarytech\", service=\"donation-service\"}[5m])) by (le)) * 1000",
             "legendFormat": "Latência p99 (ms)"
           }],
           "fieldConfig": {
@@ -63,9 +67,11 @@ data:
           "id": 3,
           "title": "Error Budget Restante",
           "type": "gauge",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
           "targets": [{
-            "expr": "(1 - donation_service:error_budget_burn_rate:1h) * 100",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "expr": "clamp_max(sum(rate(http_requests_total{namespace=\"solidarytech\", service=\"donation-service\", status!~\"5..\"}[1h])) / sum(rate(http_requests_total{namespace=\"solidarytech\", service=\"donation-service\"}[1h])) * 100, 100)",
             "legendFormat": "Error Budget %"
           }],
           "fieldConfig": {
@@ -87,8 +93,10 @@ data:
           "id": 4,
           "title": "Pods Running - solidarytech",
           "type": "stat",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
           "targets": [{
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
             "expr": "count(kube_pod_status_ready{namespace=\"solidarytech\", condition=\"true\"})",
             "legendFormat": "Pods Ready"
           }],
@@ -106,12 +114,14 @@ data:
         },
         {
           "id": 5,
-          "title": "Taxa de Requisições - donation-service (Golden Signal)",
+          "title": "Taxa de Requisições - Todos os Serviços (Golden Signal)",
           "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
           "targets": [{
-            "expr": "sum(rate(http_requests_total{service=\"donation-service\"}[5m])) by (status)",
-            "legendFormat": "Status {{ status }}"
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "expr": "sum(rate(http_requests_total{namespace=\"solidarytech\"}[5m])) by (service)",
+            "legendFormat": "{{ service }}"
           }],
           "fieldConfig": {
             "defaults": {"unit": "reqps"}
@@ -121,18 +131,22 @@ data:
           "id": 6,
           "title": "Latência por Percentil - donation-service (Golden Signal)",
           "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
           "targets": [
             {
-              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"solidarytech\", service=\"donation-service\"}[5m])) by (le))",
               "legendFormat": "p50"
             },
             {
-              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"solidarytech\", service=\"donation-service\"}[5m])) by (le))",
               "legendFormat": "p95"
             },
             {
-              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"donation-service\"}[5m])) by (le))",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"solidarytech\", service=\"donation-service\"}[5m])) by (le))",
               "legendFormat": "p99"
             }
           ],
@@ -144,9 +158,11 @@ data:
           "id": 7,
           "title": "Taxa de Erros - Todos os Serviços (Golden Signal)",
           "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
           "targets": [{
-            "expr": "sum(rate(http_requests_total{namespace=\"solidarytech\", status=~\"5..\"}[5m])) by (service)",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "expr": "sum(rate(http_requests_total{namespace=\"solidarytech\", status=~\"5..|.*[Ee]rror.*\"}[5m])) by (service)",
             "legendFormat": "{{ service }}"
           }],
           "fieldConfig": {
@@ -155,11 +171,13 @@ data:
         },
         {
           "id": 8,
-          "title": "Saturação - CPU/Memória dos Pods (Golden Signal)",
+          "title": "Saturação - CPU dos Pods (Golden Signal)",
           "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
           "targets": [
             {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
               "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"solidarytech\", container!=\"\"}[5m])) by (pod)",
               "legendFormat": "CPU {{ pod }}"
             }
@@ -172,8 +190,10 @@ data:
           "id": 9,
           "title": "Restarts de Container (Auto-Healing)",
           "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "gridPos": {"h": 6, "w": 24, "x": 0, "y": 20},
           "targets": [{
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
             "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"solidarytech\"}[1h])",
             "legendFormat": "{{ pod }}/{{ container }}"
           }],
