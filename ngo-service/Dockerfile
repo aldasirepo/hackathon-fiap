@@ -19,4 +19,4 @@ USER appuser
 EXPOSE 8081
 ENV PORT=8081
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8081", "--workers", "2", "--timeout", "60", "app:app"]
+CMD ["newrelic-admin", "run-program", "gunicorn", "--bind", "0.0.0.0:8081", "--workers", "2", "--timeout", "60", "app:app"]

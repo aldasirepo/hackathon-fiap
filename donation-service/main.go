@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/joho/godotenv"
+	newrelic "github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -39,6 +40,7 @@ type App struct {
 	DB          *sql.DB
 	SqsSvc      *sqs.SQS
 	SqsQueueURL string
+	NRApp       *newrelic.Application
 }
 
 var (
@@ -120,6 +122,15 @@ func main() {
 	shutdown := initTracer()
 	defer shutdown(context.Background())
 
+	nrApp, err := newrelic.NewApplication(
+		newrelic.ConfigAppName(os.Getenv("NEW_RELIC_APP_NAME")),
+		newrelic.ConfigLicense(os.Getenv("NEW_RELIC_LICENSE_KEY")),
+		newrelic.ConfigDistributedTracerEnabled(true),
+	)
+	if err != nil {
+		log.Printf("Aviso: New Relic não inicializado: %v", err)
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
@@ -145,11 +156,11 @@ func main() {
 		log.Println("Integração com AWS SQS ativada.")
 	}
 
-	app := &App{DB: db, SqsSvc: sqsSvc, SqsQueueURL: queueURL}
+	app := &App{DB: db, SqsSvc: sqsSvc, SqsQueueURL: queueURL, NRApp: nrApp}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", metricsMiddleware(app.HealthHandler, "/health"))
-	mux.HandleFunc("/donations", metricsMiddleware(app.DonationHandler, "/donations"))
+	mux.HandleFunc(newrelic.WrapHandleFunc(nrApp, "/health", metricsMiddleware(app.HealthHandler, "/health")))
+	mux.HandleFunc(newrelic.WrapHandleFunc(nrApp, "/donations", metricsMiddleware(app.DonationHandler, "/donations")))
 	mux.Handle("/metrics", promhttp.Handler())
 
 	log.Printf("donation-service rodando na porta %s", port)

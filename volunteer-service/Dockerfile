@@ -18,4 +18,4 @@ USER appuser
 EXPOSE 8083
 ENV PORT=8083
 
-CMD ["python", "app.py"]
+CMD ["newrelic-admin", "run-program", "python", "app.py"]
